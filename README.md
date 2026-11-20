@@ -292,6 +292,7 @@ Default Ollama configuration retains weights in memory for 24 hours. A 5-minute 
 
 ---
 
-## Authors
+## Author
 
-Academic project developed for DevOps and Cloud Engineering curriculum.
+- **Mouhamadou Aliou BA** ([@Alioukun221](https://github.com/Alioukun221))
+
