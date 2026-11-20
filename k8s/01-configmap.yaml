@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: llm-config
+  namespace: llm
+data:
+  # Ollama server configuration
+  OLLAMA_HOST: "0.0.0.0:11434"
+  OLLAMA_MODELS: "/root/.ollama/models"
+  # The subject's Dockerfile uses 24h, which keeps every model resident in RAM
+  # after use. On a 7.7 GB machine, demoing two models in a row then means both
+  # loaded at once. 5m unloads each one shortly after the demo.
+  OLLAMA_KEEP_ALIVE: "5m"
+
+  # Open WebUI points at the Ollama Service by its in-cluster DNS name
+  OLLAMA_BASE_URL: "http://ollama:11434"
+  WEBUI_AUTH: "False"
+
+ 
+  ENABLE_OPENAI_API: "False"

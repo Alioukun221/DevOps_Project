@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: llm
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  # Model weights live on a ReadWriteOnce PVC, so the old pod must release it before the new one starts
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          # A "latest" tag makes Kubernetes default to Always, so every pod
+          # recreation contacts the registry again for a 9 GB image. The image
+          # is pulled once and reused afterwards.
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 11434
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          envFrom:
+            - configMapRef:
+                name: llm-config
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "3"
+              memory: "3Gi"
+          # Pulling a model can take minutes: the startup probe gives the
+          # container up to 5 min to come up before liveness starts judging it
+          startupProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          # Loading model weights blocks the HTTP handler for a long time on a slow node
+          livenessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 9
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-data
