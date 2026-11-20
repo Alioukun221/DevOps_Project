@@ -1,0 +1,944 @@
+
+\documentclass[10pt,a4paper]{article}
+
+% ============================================================
+% PACKAGES
+% ============================================================
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+%\usepackage[a4paper,margin=1.35cm,headheight=13pt]{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{tikz}
+
+\usetikzlibrary{
+    positioning,
+    arrows.meta,
+    fit,
+    backgrounds,
+    calc,
+    decorations.pathreplacing,
+    shapes.geometric
+}
+
+\usepackage[
+    a4paper,
+    left=1.7cm,
+    right=1.7cm,
+    top=1.7cm,
+    bottom=1.6cm,
+    headheight=14pt,
+    headsep=7pt,
+    footskip=12pt
+]{geometry}
+
+% ============================================================
+% COULEURS
+% ============================================================
+\definecolor{encre}{HTML}{16222E}
+\definecolor{accent}{HTML}{1F6F8B}
+\definecolor{accentpale}{HTML}{E7F0F4}
+\definecolor{gris}{HTML}{6E7C87}
+\definecolor{vert}{HTML}{2E7D5B}
+\definecolor{vertpale}{HTML}{E6F2EC}
+
+\usepackage[colorlinks=true,linkcolor=accent,urlcolor=accent]{hyperref}
+
+% ============================================================
+% STYLE
+% ============================================================
+\titleformat{\section}
+    {\normalfont\large\bfseries\sffamily\color{accent}}
+    {\thesection}{0.7em}{}
+
+\titleformat{\subsection}
+    {\normalfont\normalsize\bfseries\sffamily\color{encre}}
+    {\thesubsection}{0.6em}{}
+
+\titlespacing*{\section}{0pt}{5pt}{2pt}
+\titlespacing*{\subsection}{0pt}{3pt}{1pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\sffamily\footnotesize\color{gris}
+Déploiement d'un LLM open source}
+\fancyhead[R]{\sffamily\footnotesize\color{gris}Projet DevOps}
+\fancyfoot[C]{\sffamily\footnotesize\color{gris}\thepage}
+
+\renewcommand{\headrulewidth}{0.3pt}
+\renewcommand{\headrule}{
+    \hbox to\headwidth{
+        \color{accent!30}
+        \leaders\hrule height \headrulewidth\hfill
+    }
+}
+
+\setlist[itemize]{
+    leftmargin=1.05em,
+    itemsep=0.2pt,
+    topsep=1pt,
+    parsep=0pt
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2pt}
+
+\captionsetup{
+    font=small,
+    labelfont={bf,sf},
+    textfont=sf,
+    skip=2pt
+}
+
+% ============================================================
+% DOCUMENT
+% ============================================================
+\begin{document}
+
+% ============================================================
+% TITRE
+% ============================================================
+\begin{center}
+{\color{accent}\rule{\textwidth}{1pt}}\\[3pt]
+
+{\sffamily\LARGE\bfseries\color{encre}
+Déploiement d'un modèle de langage open source}\\[2pt]
+
+%{\sffamily\large\color{accent}
+%De Docker compose à Kubernetes}\\[2pt]
+
+{\sffamily\small\color{gris}
+Mouhamadou Aliou BA
+\quad\textbullet\quad
+Projet DevOps
+\quad\textbullet\quad
+\today}\\[2pt]
+
+{\color{accent}\rule{\textwidth}{1pt}}
+\end{center}
+
+% ============================================================
+% 1. ARCHITECTURE
+% ============================================================
+\section{L'architecture déployée}
+\thispagestyle{empty}
+L'application réunit deux services complémentaires. Ollama héberge les modèles
+de langage et expose une API d'inférence. Open WebUI fournit l'interface de
+dialogue et interroge cette API. Le déploiement a d'abord été réalisé avec
+Docker Compose, puis reproduit sur un cluster Minikube où neuf ressources
+décrivent l'ensemble du système.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    font=\sffamily\scriptsize,
+    bloc/.style={
+        rectangle, rounded corners=2pt,
+        draw=accent, fill=accentpale,
+        minimum width=2.1cm,
+        minimum height=0.62cm,
+        align=center, thick,
+        text=encre
+    },
+    pod/.style={
+        rectangle, rounded corners=2pt,
+        draw=encre, fill=white,
+        minimum width=2.1cm,
+        minimum height=0.62cm,
+        align=center, thick,
+        text=encre
+    },
+    disque/.style={
+        cylinder,
+        shape border rotate=90,
+        aspect=0.22,
+        draw=vert,
+        fill=vertpale,
+        minimum width=1.05cm,
+        minimum height=0.85cm,
+        align=center,
+        text=encre
+    },
+    ext/.style={
+        rectangle, rounded corners=2pt,
+        draw=gris, fill=white,
+        minimum width=1.45cm,
+        minimum height=0.52cm,
+        align=center
+    },
+    conf/.style={
+        rectangle, rounded corners=2pt,
+        draw=gris, fill=white,
+        minimum width=1.5cm,
+        minimum height=0.52cm,
+        align=center,
+        text=gris
+    },
+    fl/.style={
+        -{Stealth[length=1.6mm]},
+        thick,
+        draw=accent
+    },
+    flv/.style={
+        -{Stealth[length=1.6mm]},
+        thick,
+        draw=vert
+    },
+    flg/.style={
+        -{Stealth[length=1.5mm]},
+        thick,
+        draw=gris,
+        dashed
+    }
+]
+
+\node[ext] (nav) {Navigateur};
+\node[bloc, right=1.15cm of nav] (ing)
+    {Ingress nginx\\[-1pt]\textit{llm.local}};
+\node[bloc, right=1.15cm of ing] (svcw)
+    {Service\\[-1pt]\textit{open-webui}};
+\node[pod, below=0.55cm of svcw] (podw)
+    {Pod\\[-1pt]Open WebUI};
+
+\node[bloc, left=1.65cm of podw] (svco)
+    {Service\\[-1pt]\textit{ollama}};
+\node[pod, left=1.15cm of svco] (podo)
+    {Pod\\[-1pt]Ollama};
+
+\node[disque, right=0.45cm of podw] (pvcw)
+    {PVC\\[-1pt]2 Gi};
+\node[disque, left=0.45cm of podo] (pvco)
+    {PVC\\[-1pt]8 Gi};
+
+\node[conf, below=0.5cm of svco] (cm)
+    {ConfigMap};
+
+\draw[fl] (nav) -- (ing);
+\draw[fl] (ing) -- (svcw);
+\draw[fl] (svcw) -- (podw);
+\draw[fl] (podw) --
+    node[midway,above=1pt,font=\tiny,text=gris]{résolution DNS}
+    (svco);
+\draw[fl] (svco) -- (podo);
+\draw[flv] (podw) -- (pvcw);
+\draw[flv] (podo) -- (pvco);
+\draw[flg] (cm) -- (podo);
+\draw[flg] (cm) -| (podw);
+
+\begin{scope}[on background layer]
+\node[
+    draw=gris,
+    dashed,
+    rounded corners=3pt,
+    inner sep=5pt,
+    fit=(ing)(svcw)(podw)(svco)(podo)(pvcw)(pvco)(cm),
+    label={
+        [font=\sffamily\tiny,text=gris]
+        above right:namespace \texttt{llm}
+    }
+] {};
+\end{scope}
+
+\end{tikzpicture}
+\caption{Les neuf ressources et le chemin d'une requête, du navigateur au modèle}
+\end{figure}
+
+\vspace{-3pt}
+
+\subsection{Rôle de chaque ressource}
+
+Le \textbf{Namespace} cloisonne les objets du projet, isole les noms et rend la
+suppression complète triviale. La \textbf{ConfigMap} externalise la
+configuration, injectée dans les deux conteneurs par \texttt{envFrom} plutôt
+qu'inscrite dans les images ou répétée dans chaque manifeste. Les deux
+\textbf{Deployments} maintiennent l'état désiré, recréant un pod dès qu'il
+disparaît ou échoue. Les deux \textbf{Services} donnent une adresse stable aux
+pods, dont les adresses IP changent à chaque recréation. Les deux
+\textbf{PersistentVolumeClaims} réclament le stockage durable, huit gigaoctets
+pour les poids des modèles et deux pour la base de l'interface. L'
+\textbf{Ingress} enfin expose l'interface hors du cluster, les Services de
+type ClusterIP n'étant joignables que de l'intérieur.
+
+\subsection{Comment les services communiquent}
+
+Trois mécanismes se superposent. Le DNS interne attribue à chaque service un nom
+résoluble dans son namespace, si bien qu'Open WebUI s'adresse au nom
+\texttt{ollama} sans jamais connaître l'adresse du pod. Le service relaie
+ensuite le trafic vers les pods portant l'étiquette attendue et déclarés
+prêts, en mettant seul ses points de terminaison à jour lorsqu'un pod est
+remplacé. C'est ce découplage que Docker Compose n'offre pas au même degré.
+L'Ingress assure enfin la traduction depuis l'extérieur, routant l'hôte
+\texttt{llm.local} vers le service de l'interface.
+
+\subsection{Pourquoi des volumes persistants}
+
+Le système de fichiers d'un conteneur disparaît avec lui, or un pod est par
+conception une entité éphémère que le deployment remplace à la moindre mise à
+jour ou au moindre échec. Sans PVC, Ollama retéléchargerait plusieurs
+gigaoctets de poids à chaque redémarrage et Open WebUI perdrait sa base, donc
+ses conversations et ses réglages. Le PVC exprime un besoin que la StorageClass
+du cluster satisfait, ce qui permet au même manifeste de fonctionner sur
+Minikube comme chez un fournisseur cloud.
+
+Les deux volumes sont en \texttt{ReadWriteOnce}, montables en écriture par un
+seul n\oe ud. Une mise à jour progressive créerait le nouveau pod avant la
+libération du volume et resterait bloquée en attente. Les deux Deployments
+déclarent donc explicitement \texttt{strategy: Recreate}.
+
+\subsection{Le rôle des trois sondes}
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.02}
+\begin{tabular}{
+@{}
+>{\raggedright\arraybackslash}p{2.25cm}
+>{\raggedright\arraybackslash}p{4.2cm}
+>{\raggedright\arraybackslash}p{8.6cm}
+@{}}
+\toprule
+\textbf{Sonde} & \textbf{Question posée} & \textbf{Effet d'un échec} \\
+\midrule
+\texttt{startupProbe}
+& Le démarrage est-il terminé ?
+& Redémarrage du conteneur. Les deux autres sondes restent suspendues tant
+qu'elle n'a pas réussi. \\
+
+\texttt{readinessProbe}
+& Peut-il recevoir du trafic ?
+& Retrait des points de terminaison du Service, sans redémarrage. \\
+
+\texttt{livenessProbe}
+& Est-il encore vivant ?
+& Le conteneur est tué puis redémarré. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La sonde de démarrage protège les applications lentes à s'initialiser et permet
+de conserver une surveillance stricte une fois le service établi. Un incident
+l'a illustré avec une limite mémoire de 1 Gi et une sonde de démarrage
+plafonnée à cinq minutes, le pod Open WebUI alternait \texttt{OOMKilled} et
+échec de sonde sans jamais finir de démarrer, le conteneur chargeant un modèle
+d'embedding au boot. Le passage à 2 Gi et dix minutes a levé les deux causes.
+Une sonde de démarrage doit être dimensionnée sur le pire cas de démarrage à
+froid, sans quoi elle transforme une initialisation lente en boucle d'échecs.
+
+% ============================================================
+% 2. COMPOSE VS KUBERNETES
+% ============================================================
+\section{Ce que Kubernetes change par rapport à Compose}
+
+Les deux outils décrivent une application multi conteneurs de façon
+déclarative, mais ne répondent pas à la même question. Compose explique comment
+démarrer des conteneurs ensemble sur une machine. Kubernetes décrit un état à
+maintenir quoi qu'il advienne, vers lequel des contrôleurs convergent en
+permanence. Compose redémarre un conteneur défaillant là où Kubernetes recrée
+un pod, éventuellement ailleurs dans le cluster. La mise à l'échelle passe
+d'une option de ligne de commande à un objet déclaratif qu'un autoscaler peut
+piloter. La configuration passe de variables d'environnement à des objets
+versionnés, ConfigMap et Secret. Le stockage passe de volumes locaux à une
+abstraction du fournisseur.
+
+La surveillance de l'état des conteneurs, enfin, passe d'un test unique exécuté
+à l'intérieur du conteneur à trois sondes pilotées par le kubelet, et cette
+différence s'est vérifiée concrètement. Le contrôle fourni dans le sujet appelle
+\texttt{wget}, absent de l'image Open WebUI, si bien que le conteneur restait
+marqué en défaut alors qu'il répondait correctement. Les sondes
+\texttt{httpGet} de Kubernetes ignorent ce problème, étant exécutées depuis
+l'extérieur du conteneur sans dépendre d'un binaire embarqué.
+
+% ============================================================
+% 3. SUPERVISION
+% ============================================================
+\section{Superviser le déploiement}
+
+Un déploiement conforme ne dit rien de son comportement sous charge. La partie
+supervision vise donc à mesurer ce que vaut réellement le service rendu, en
+termes de latence et de débit.
+
+\subsection{La chaîne d'observabilité mise en place}
+
+Trois outils la composent.\textbf{Prometheus} collecte périodiquement les
+métriques exposées par ses cibles et les conserve en séries temporelles.\textbf{Grafana} interroge Prometheus en PromQL et rend les tableaux de bord,
+la source de données et les tableaux étant provisionnés par fichier pour
+rester reproductibles. Entre les deux manquait l'essentiel car, dans la version
+et la configuration utilisées, \textbf{Ollama ne fournissait pas directement
+les métriques Prometheus nécessaires} pour mesurer le TTFT, le TPOT et les
+performances d'inférence. Il n'y avait donc rien à collecter sous la forme
+attendue.
+
+Un exporter a été écrit pour combler ce vide. Plutôt que de lire le moteur,
+il le mesure de l'extérieur en lui adressant de vraies requêtes en streaming
+et en les chronométrant. C'est une sonde active, dans l'esprit de
+\texttt{blackbox\_exporter}. Son pool de générateurs de charge est
+redimensionnable pendant l'exécution, ce qui permet d'observer la dégradation
+en direct.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    font=\sffamily\scriptsize,
+    b/.style={
+        rectangle, rounded corners=2pt,
+        draw=accent, fill=accentpale,
+        minimum width=2.25cm,
+        minimum height=0.62cm,
+        align=center, thick,
+        text=encre
+    },
+    e/.style={
+        rectangle, rounded corners=2pt,
+        draw=vert, fill=vertpale,
+        minimum width=2.45cm,
+        minimum height=0.62cm,
+        align=center, thick,
+        text=encre
+    },
+    fl/.style={
+        -{Stealth[length=1.6mm]},
+        thick,
+        draw=accent
+    }
+]
+
+\node[b] (ollama) {Ollama\\[-1pt]\textit{moteur}};
+\node[e, right=1.35cm of ollama] (exp)
+    {Exporter\\[-1pt]\textit{sonde active}};
+\node[b, right=1.35cm of exp] (prom)
+    {Prometheus\\[-1pt]\textit{séries}};
+\node[b, right=1.35cm of prom] (graf)
+    {Grafana\\[-1pt]\textit{tableaux}};
+
+\draw[fl,draw=vert,transform canvas={yshift=3pt}]
+    (exp) -- node[above,font=\tiny,text=gris]{requêtes streaming} (ollama);
+
+\draw[fl,draw=vert,transform canvas={yshift=-3pt}]
+    (ollama) -- node[below,font=\tiny,text=gris]{jetons et compteurs} (exp);
+
+\draw[fl]
+    (prom) -- node[above,font=\tiny,text=gris]{\texttt{/metrics}} (exp);
+
+\draw[fl]
+    (prom) -- node[above,font=\tiny,text=gris]{PromQL} (graf);
+
+\end{tikzpicture}
+\caption{L'exporter mesure le moteur faute de pouvoir l'interroger,
+Prometheus le collecte}
+\end{figure}
+
+\vspace{-3pt}
+
+\subsection{Les grandeurs mesurées}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[font=\sffamily\scriptsize, x=1cm, y=0.8cm]
+
+\draw[
+    thick,
+    draw=gris,
+    -{Stealth[length=1.7mm]}
+]
+(0,0) -- (13.3,0);
+
+\foreach \x in {0,3.3,11.0}
+{
+    \draw[thick,draw=encre]
+    (\x,-0.15) -- (\x,0.15);
+}
+
+\foreach \x in {4.5,5.7,6.9,8.1,9.3,10.5}
+{
+    \draw[draw=accent,thick]
+    (\x,-0.09) -- (\x,0.09);
+    \fill[accent] (\x,0.26) circle (1.2pt);
+}
+
+\fill[accent] (3.3,0.26) circle (1.2pt);
+
+\node[below=2pt,text=encre] at (0,-0.15) {$t_{env}$};
+\node[below=2pt,text=encre] at (3.3,-0.15) {$t_1$};
+\node[below=2pt,text=encre] at (11.0,-0.15) {$t_{fin}$};
+
+\draw[
+    decorate,
+    decoration={brace,amplitude=4pt},
+    draw=accent,
+    thick
+]
+(0,0.58) -- (3.3,0.58)
+node[midway,above=3pt,text=accent]{\textbf{TTFT}};
+
+\draw[
+    decorate,
+    decoration={brace,amplitude=4pt},
+    draw=vert,
+    thick
+]
+(4.5,0.58) -- (5.7,0.58)
+node[midway,above=3pt,text=vert]{\textbf{TPOT}};
+
+\draw[
+    decorate,
+    decoration={brace,mirror,amplitude=4pt},
+    draw=gris,
+    thick
+]
+(0,-0.72) -- (11.0,-0.72)
+node[midway,below=3pt,text=gris]{\textbf{latence de bout en bout}};
+
+\node[
+    text=gris,
+    anchor=west
+]
+at (0.1,1.42)
+{\footnotesize attente, chargement du modèle, traitement du prompt};
+
+\node[
+    text=gris,
+    anchor=west
+]
+at (6.6,1.0)
+{\footnotesize génération des $N$ jetons};
+
+\end{tikzpicture}
+\caption{Décomposition temporelle d'une requête}
+\end{figure}
+
+\vspace{-3pt}
+
+En notant $t_{env}$ l'instant d'envoi, $t_1$ l'arrivée du premier jeton,
+$t_{fin}$ la fin du flux et $N$ le nombre de jetons générés, les grandeurs
+suivies se définissent ainsi.
+
+\begin{align*}
+\text{TTFT}
+&=
+t_1-t_{env}
+=
+T_{attente}+T_{chargement}+T_{prefill}
+\\[-1pt]
+\text{TPOT}
+&=
+\frac{t_{fin}-t_1}{N-1}
+\\[-1pt]
+\text{E2E}
+&=
+\text{TTFT}+\text{TPOT}(N-1)
+\\[-1pt]
+\text{Débit}
+&=
+\frac{\texttt{eval\_count}}
+{\texttt{eval\_duration}\times10^{-9}}
+\end{align*}
+
+Le TTFT correspond à ce que perçoit l'utilisateur avant le premier caractère.
+Sa décomposition explique une observation frappante, la première requête après
+démarrage affichant 123 secondes contre 0,5 seconde ensuite. Cet écart est
+compatible avec un coût important de $T_{chargement}$, sans permettre à lui
+seul d'isoler chaque composante du cold start.
+
+Le PVC d'Ollama économise surtout le téléchargement répété des poids lors
+d'une recréation ; il ne supprime pas le chargement des poids en mémoire lors
+du redémarrage du processus.
+
+Le débit est repris des compteurs renvoyés par le moteur dans son dernier
+segment, ce qui donne une mesure serveur sans bruit réseau, tandis que le TTFT
+est mesuré côté client, ce qui impose le streaming. En réponse unique, le
+premier et le dernier jeton arrivent ensemble et la grandeur perd tout sens.
+
+Prometheus ne conserve pas les valeurs individuelles mais des compteurs
+cumulés par intervalle, les percentiles étant reconstruits par interpolation
+linéaire dans l'intervalle où le cumul franchit le seuil, au moyen de
+\texttt{histogram\_quantile}. La précision dépend donc du découpage retenu, et
+les intervalles de l'exporter s'étendent de 0,25 à 120 secondes, les valeurs
+par défaut regroupant toutes ces mesures dans un seul seau.
+
+\subsection{Résultats et comportement sous concurrence}
+
+\begin{center}
+\small
+\renewcommand{\arraystretch}{1.02}
+\begin{tabular}{@{}lrrl@{}}
+\toprule
+&
+\textbf{1 requête}
+&
+\textbf{3 en parallèle}
+&
+\\
+\midrule
+TTFT p50
+& 0,5 s
+& 35,0 s
+& \\
+
+TTFT p95
+& --
+& 57,0 s
+& \\
+
+Latence e2e p95
+& 17 s
+& 86,0 s
+& \textcolor{accent}{$\times$ 5} \\
+
+\textbf{Débit}
+& \textbf{3,8 jetons/s}
+& \textbf{3,28 jetons/s}
+& \textcolor{vert}{-13,7\,\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La latence augmente fortement alors que le débit diminue légèrement. Ces
+résultats constituent des \textbf{signes de saturation dans la configuration
+expérimentale}, mais les deux niveaux de concurrence testés ne permettent pas
+d'identifier un point de saturation précis.
+
+La loi de Little formalise le lien entre concurrence et temps de réponse.
+En boucle fermée avec $N$ requêtes présentes dans le système, un débit de
+requêtes $X$ et un temps de réponse moyen $R$, on a
+
+\[
+N=X\times R.
+\]
+
+Il serait incorrect d'utiliser directement les 3,8 et 3,28 jetons/s comme
+$X$, car il s'agit d'un débit de jetons et non de requêtes. Sans débit de
+requêtes mesuré, Little sert donc ici de cadre d'interprétation plutôt que
+de calcul numérique de $R$.
+
+Les mesures montrent néanmoins qu'ajouter de la concurrence augmente fortement
+l'attente avant le premier jeton sans produire d'augmentation proportionnelle
+du débit global. Elles révèlent ainsi une limite du \textbf{moteur d'inférence
+dans la configuration étudiée}, sans permettre d'affirmer que les requêtes
+sont strictement traitées en série. Améliorer le déploiement ne passe donc pas
+nécessairement par un réglage Kubernetes supplémentaire, mais peut conduire
+à envisager un moteur mieux adapté au service concurrent.
+
+% ============================================================
+% 4. VLLM
+% ============================================================
+\section{Un moteur d'inférence de production}
+
+C'est exactement le problème que résolvent les moteurs conçus pour le service
+à grande échelle.vLLM s'appuie sur deux mécanismes qui répondent chacun à
+un aspect de la gestion de la concurrence.
+
+\textbf{PagedAttention} améliore l'utilisation de la mémoire. Le cache KV,
+qui mémorise les clés et valeurs d'attention des jetons déjà traités, est
+habituellement alloué de façon contiguë. PagedAttention découpe le cache en
+blocs de taille fixe placés librement, une table de blocs reliant chaque
+position logique à son bloc physique.
+
+Dans les expériences de l'article, cette organisation réduit fortement le
+gaspillage mémoire et permet de maintenir davantage de requêtes actives en
+parallèle. Des blocs identiques peuvent aussi être partagés entre requêtes
+en copie sur écriture, notamment lorsque les prompts partagent un préfixe.
+
+\textbf{Le batching continu} agit sur la file d'attente.Un lot classique est
+figé, on attend la fin de toutes ses requêtes avant d'en admettre de nouvelles,
+si bien que le lot avance au rythme de sa séquence la plus longue et que les
+places libérées restent inutilisées.vLLM planifie à chaque itération de
+décodage, une séquence terminée cédant aussitôt sa place à une requête en
+attente. La concurrence peut ainsi être mieux convertie en utilisation des
+ressources et en débit lorsque la charge est suffisante.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    font=\sffamily\scriptsize,
+    x=1cm,
+    y=0.5cm,
+    req/.style={
+        rectangle,
+        draw=accent,
+        fill=accentpale,
+        minimum height=0.34cm,
+        inner sep=1pt,
+        text=encre
+    },
+    vide/.style={
+        rectangle,
+        draw=gris!45,
+        fill=gris!12,
+        minimum height=0.34cm,
+        inner sep=1pt,
+        text=gris
+    },
+    neuf/.style={
+        rectangle,
+        draw=vert,
+        fill=vertpale,
+        minimum height=0.34cm,
+        inner sep=1pt,
+        text=encre
+    }
+]
+
+% Lot figé
+\node[
+    anchor=west,
+    text=encre,
+    font=\sffamily\scriptsize\bfseries
+]
+at (-0.35,3.3) {Lot figé};
+
+\foreach \y/\len in {
+    2.3/3.4,
+    1.3/1.7,
+    0.3/2.6,
+    -0.7/1.1
+}
+{
+    \node[
+        req,
+        anchor=west,
+        minimum width=\len cm
+    ] at (0,\y) {};
+}
+
+\foreach \y/\st/\len in {
+    1.3/1.7/2.0,
+    0.3/2.6/1.1,
+    -0.7/1.1/2.6
+}
+{
+    \node[
+        vide,
+        anchor=west,
+        minimum width=\len cm
+    ] at (\st,\y) {};
+}
+
+\draw[dashed,draw=gris]
+(3.75,-1.2) -- (3.75,3);
+
+\node[
+    neuf,
+    anchor=west,
+    minimum width=1.5cm
+] at (3.9,2.3) {};
+
+\node[
+    neuf,
+    anchor=west,
+    minimum width=1.5cm
+] at (3.9,1.3) {};
+
+% Batching continu
+\begin{scope}[xshift=7.2cm]
+
+\node[
+    anchor=west,
+    text=encre,
+    font=\sffamily\scriptsize\bfseries
+]
+at (-0.35,3.3) {Batching continu};
+
+\foreach \y/\len in {
+    2.3/3.4,
+    1.3/1.7,
+    0.3/2.6,
+    -0.7/1.1
+}
+{
+    \node[
+        req,
+        anchor=west,
+        minimum width=\len cm
+    ] at (0,\y) {};
+}
+
+\node[
+    neuf,
+    anchor=west,
+    minimum width=1.6cm
+] at (1.7,1.3) {};
+
+\node[
+    neuf,
+    anchor=west,
+    minimum width=1.4cm
+] at (2.6,0.3) {};
+
+\node[
+    neuf,
+    anchor=west,
+    minimum width=2.2cm
+] at (1.1,-0.7) {};
+
+\node[
+    neuf,
+    anchor=west,
+    minimum width=1.1cm
+] at (3.3,1.3) {};
+
+\end{scope}
+
+% Axes du temps
+\draw[
+    -{Stealth[length=1.4mm]},
+    draw=gris
+]
+(-0.35,-1.55) -- (5.15,-1.55);
+
+\draw[
+    -{Stealth[length=1.4mm]},
+    draw=gris
+]
+(6.85,-1.55) -- (12.35,-1.55);
+
+\node[
+    text=gris,
+    font=\tiny,
+    anchor=west
+]
+at (5.25,-1.55) {temps};
+
+\node[
+    text=gris,
+    font=\tiny,
+    anchor=west
+]
+at (12.45,-1.55) {temps};
+
+% Légende
+\node[
+    req,
+    minimum width=0.35cm
+] (l1) at (0.35,-2.25) {};
+
+\node[
+    anchor=west,
+    text=gris,
+    font=\tiny
+]
+at (0.6,-2.25) {requêtes du lot initial};
+
+\node[
+    neuf,
+    minimum width=0.35cm
+] (l2) at (4.35,-2.25) {};
+
+\node[
+    anchor=west,
+    text=gris,
+    font=\tiny
+]
+at (4.6,-2.25) {requêtes admises ensuite};
+
+\node[
+    vide,
+    minimum width=0.35cm
+] (l3) at (9.0,-2.25) {};
+
+\node[
+    anchor=west,
+    text=gris,
+    font=\tiny
+]
+at (9.25,-2.25) {emplacement inutilisé};
+
+\end{tikzpicture}
+\caption{Quatre emplacements d'exécution. À gauche le lot attend sa séquence
+la plus longue, à droite les requêtes en attente comblent les places dès
+qu'elles se libèrent}
+\end{figure}
+
+\vspace{-3pt}
+
+S'y ajoutent le cache de préfixes, qui évite de recalculer le prefill d'un
+prompt système répété, et la publication native des métriques, dont la
+profondeur de file d'attente, sur laquelle un autoscaling horizontal peut
+directement s'appuyer.
+
+% ============================================================
+% 5. CONCLUSION
+% ============================================================
+\section{Conclusion}
+
+Le déploiement a été mené à son terme dans les deux environnements, et les
+ressources exigées se comportent comme prévu, sans pod en échec ni volume non
+lié. L'essentiel de ce qui a été appris ne vient pourtant pas de la rédaction
+des manifestes, relativement directe, mais de deux confrontations avec le réel.
+
+La première tient au diagnostic des pannes car chacune avait une cause précise et
+vérifiable, un binaire absent d'une image, une limite mémoire sous-évaluée,
+une sonde de démarrage trop courte.Les commandes
+\texttt{kubectl describe} et \texttt{kubectl get events} ont été plus utiles
+que toute relecture de fichier YAML, et c'est le champ \texttt{Last State}
+qui a livré la clef du pod en boucle d'échecs.
+
+La seconde tient à la mesure, en effet un déploiement conforme ne garantit pas un service
+performant, et il a fallu instrumenter le système pour découvrir une forte
+dégradation dès trois requêtes simultanées.Ce constat déplace la question.
+Le déploiement n'est pas le facteur limitant principal dans cette expérience ;
+c'est le moteur d'inférence qui devient le facteur limitant,et l'étape suivante
+d'une mise en production consisterait à envisager un moteur pratiquant la
+gestion paginée du cache et le batching continu.
+
+% ============================================================
+% SOURCES
+% ============================================================
+\section*{Sources}
+
+\begin{itemize}
+\small
+
+\item
+Kwon W. \textit{et al.},
+\textit{Efficient Memory Management for Large Language Model Serving with
+PagedAttention}, SOSP 2023.
+\href{https://arxiv.org/abs/2309.06180}
+{arxiv.org/abs/2309.06180}
+
+\item
+Yu G. \textit{et al.},
+\textit{Orca, a Distributed Serving System for Transformer-Based Generative
+Models}, OSDI 2022, à l'origine de l'ordonnancement par itération.
+
+\item
+Documentation vLLM,
+\href{https://docs.vllm.ai}{docs.vllm.ai}, et
+\textit{Inside vLLM, Anatomy of a High-Throughput LLM Inference System},
+\href{https://blog.vllm.ai/2025/09/05/anatomy-of-vllm.html}
+{blog.vllm.ai}
+
+\item
+Documentation Kubernetes, concepts relatifs aux Deployments, Services,
+volumes persistants et sondes,
+\href{https://kubernetes.io/docs/concepts/}
+{kubernetes.io/docs/concepts}
+
+\item
+Documentation Ollama, API et gestion des modèles,
+\href{https://github.com/ollama/ollama/blob/main/docs/api.md}
+{github.com/ollama/ollama}
+
+\item
+Documentation Prometheus, types de métriques et fonction
+\texttt{histogram\_quantile},
+\href{https://prometheus.io/docs/}
+{prometheus.io/docs}
+
+\item
+Documentation Open WebUI,
+\href{https://docs.openwebui.com}
+{docs.openwebui.com}
+
+\end{itemize}
+
+\end{document}
