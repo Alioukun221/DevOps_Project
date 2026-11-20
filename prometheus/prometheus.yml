@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # Inference metrics: time to first token, end-to-end latency, tokens/s.
+  # Ollama has no /metrics of its own, so this exporter probes it actively.
+  - job_name: "ollama"
+    static_configs:
+      - targets: ["ollama-exporter:9105"]
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

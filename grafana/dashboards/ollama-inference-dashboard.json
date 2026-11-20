@@ -1,0 +1,208 @@
+{
+  "title": "Ollama - Inference Metrics",
+  "uid": "ollama-inference-metrics",
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 10,
+      "title": "TTFT p95 (courant)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 2 }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ollama_ttft_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Debit (jetons/s)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2 }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(ollama_generated_tokens_total[5m]))",
+          "legendFormat": "tokens/s"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Concurrence",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        { "expr": "ollama_target_concurrency", "legendFormat": "workers" },
+        { "expr": "ollama_inflight_requests", "legendFormat": "en vol" }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Requetes / s",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 3 }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(ollama_requests_total{status=\"success\"}[5m]))",
+          "legendFormat": "succes/s"
+        }
+      ]
+    },
+
+    {
+      "id": 1,
+      "title": "Time To First Token (TTFT)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(ollama_ttft_seconds_bucket[2m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ollama_ttft_seconds_bucket[2m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(ollama_ttft_seconds_bucket[2m])) by (le))",
+          "legendFormat": "p99"
+        },
+        {
+          "expr": "sum(rate(ollama_ttft_seconds_sum[2m])) / sum(rate(ollama_ttft_seconds_count[2m]))",
+          "legendFormat": "moyenne"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Latence de bout en bout",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(ollama_request_duration_seconds_bucket[2m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ollama_request_duration_seconds_bucket[2m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(ollama_request_duration_seconds_bucket[2m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+
+    {
+      "id": 3,
+      "title": "Debit de generation",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 13 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(ollama_generated_tokens_total[2m]))",
+          "legendFormat": "jetons generes/s"
+        },
+        {
+          "expr": "sum(rate(ollama_prompt_tokens_total[2m]))",
+          "legendFormat": "jetons de prompt/s"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Vitesse par requete (eval_count / eval_duration)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 13 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(ollama_tokens_per_second_bucket[2m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ollama_tokens_per_second_bucket[2m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+
+    {
+      "id": 5,
+      "title": "Concurrence et requetes en vol",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "expr": "ollama_target_concurrency", "legendFormat": "workers" },
+        { "expr": "ollama_inflight_requests", "legendFormat": "requetes en vol" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Decomposition du temps de reponse",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "sum(rate(ollama_model_load_seconds_sum[2m])) / clamp_min(sum(rate(ollama_model_load_seconds_count[2m])), 0.0001)",
+          "legendFormat": "chargement du modele"
+        },
+        {
+          "expr": "sum(rate(ollama_prompt_eval_seconds_sum[2m])) / clamp_min(sum(rate(ollama_prompt_eval_seconds_count[2m])), 0.0001)",
+          "legendFormat": "evaluation du prompt"
+        },
+        {
+          "expr": "sum(rate(ollama_ttft_seconds_sum[2m])) / clamp_min(sum(rate(ollama_ttft_seconds_count[2m])), 0.0001)",
+          "legendFormat": "TTFT total"
+        }
+      ]
+    },
+
+    {
+      "id": 7,
+      "title": "Erreurs et disponibilite",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 30 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "expr": "ollama_up", "legendFormat": "ollama_up" },
+        {
+          "expr": "sum(rate(ollama_requests_total{status=\"error\"}[2m]))",
+          "legendFormat": "erreurs/s"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Ressources du conteneur ollama",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 30 },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{name=\"ollama\"}",
+          "legendFormat": "memoire utilisee"
+        },
+        {
+          "expr": "container_spec_memory_limit_bytes{name=\"ollama\"}",
+          "legendFormat": "limite"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "version": 1
+}
