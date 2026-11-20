@@ -1,0 +1,15 @@
+# Configuration locale, peut contenir des secrets. Utiliser .env.example.
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Donnees runtime et sorties de compilation
+grafana-data/
+prometheus-data/
+rapport/*.aux
+rapport/*.log
+rapport/*.out
+rapport/*.toc
+*.log

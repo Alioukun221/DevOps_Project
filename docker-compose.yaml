@@ -1,0 +1,159 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+
+    profiles: ["core"]
+
+    ports:
+      - "${OLLAMA_PORT}:11434"
+
+    volumes:
+      - ollama:/root/.ollama
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+    networks:
+      - llm
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+
+    container_name: open-webui
+
+    profiles: ["core"]
+
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+    ports:
+      - "${WEBUI_PORT}:8080"
+
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      # Single-user local deployment: skip the admin account and login screen.
+      # Matches WEBUI_AUTH in the Kubernetes ConfigMap.
+      WEBUI_AUTH: "False"
+      # No OpenAI-compatible backend is deployed. Disabled explicitly: pointed
+      # at a host that does not exist, every /api/models call blocks for about
+      # 8 seconds on DNS resolution before failing.
+      ENABLE_OPENAI_API: "False"
+
+    volumes:
+      - open-webui:/app/backend/data
+
+    restart: unless-stopped
+
+    healthcheck:
+      # The subject's file used wget, which is absent from this image: the
+      # container stayed permanently unhealthy while serving fine. curl is
+      # present, and the first boot downloads an embedding model, hence the
+      # long start_period.
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 600s
+
+    networks:
+      - llm
+
+  # Ollama publishes no Prometheus endpoint, so this exporter measures it from
+  # outside: it drives the engine with streaming requests and turns their
+  # timings into histograms (TTFT, end-to-end latency, tokens/s). Its worker
+  # pool is resizable at runtime to show latency degrading under concurrency:
+  #   curl -X POST "http://localhost:9105/concurrency?value=4"
+  ollama-exporter:
+    build:
+      context: ./exporter
+    image: llm-devops/ollama-exporter:1.0
+    container_name: ollama-exporter
+
+    profiles: ["monitoring"]
+
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODELS: ${EXPORTER_MODELS}
+      START_CONCURRENCY: ${EXPORTER_CONCURRENCY}
+      MAX_TOKENS: 64
+
+    ports:
+      - "${EXPORTER_PORT}:9105"
+
+    restart: unless-stopped
+
+    networks:
+      - llm
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+
+    profiles: ["monitoring"]
+
+    depends_on:
+      - ollama-exporter
+
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+
+    restart: unless-stopped
+
+    networks:
+      - llm
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+
+    profiles: ["monitoring"]
+
+    depends_on:
+      - prometheus
+
+    ports:
+      - "${GRAFANA_PORT}:3000"
+
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+    restart: unless-stopped
+
+    networks:
+      - llm
+
+volumes:
+  ollama:
+  open-webui:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  llm:
+    driver: bridge
